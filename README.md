@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Accessibility Compliance Radar
 
-## Getting Started
+Wklej link do strony → automatyczny audyt WCAG 2.1 AA (Playwright + axe-core) → gotowy PDF do pobrania.
 
-First, run the development server:
+Zbudowane pod kątem European Accessibility Act (EAA, obowiązuje od 06.2025) — szybki, jednorazowy audyt
+zgodności bez ręcznej pracy.
+
+## Jak to działa
+
+1. Użytkownik wkleja URL na stronie głównej.
+2. `/api/audit` uruchamia headless Chromium (Playwright), otwiera stronę i skanuje ją silnikiem
+   [axe-core](https://github.com/dequelabs/axe-core) przez `@axe-core/playwright`.
+3. Wynik jest renderowany jako HTML i zapisywany do PDF (`page.pdf()`), w formacie zbliżonym do
+   raportu agencyjnego — z podziałem na naruszenia krytyczne/poważne/drobne, kodem HTML winowajcy i
+   sugerowaną poprawką z axe-core (`failureSummary`).
+4. PDF wraca do przeglądarki jako base64 i pobiera się automatycznie.
+
+## Ograniczenia — ważne
+
+Raport jest **w 100% automatyczny**, bez ręcznej weryfikacji. Automatyczne skanery typu axe-core wykrywają
+tylko część typów naruszeń WCAG (dobrze radzą sobie z alt-textem, kontrastem, etykietami formularzy;
+gorzej z rzeczami wymagającymi interakcji, np. pułapkami fokusu w niestandardowych komponentach). Przed
+wysłaniem raportu klientowi warto ręcznie zweryfikować pozycje oznaczone jako krytyczne/poważne.
+
+## Rozwój lokalny
 
 ```bash
+npm install
+npx playwright install chromium   # tylko pierwszy raz, do lokalnego uruchomienia
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Otwórz [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy na Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Serverless functions Vercela nie mieszczą pełnego Chromium Playwrighta, dlatego produkcyjnie używany jest
+`playwright-core` + [`@sparticuz/chromium`](https://github.com/Sparticuz/chromium) (patrz `lib/browser.ts`,
+przełącza się automatycznie po zmiennej środowiskowej `VERCEL`, którą Vercel ustawia sam).
 
-## Learn More
+```bash
+vercel deploy
+```
 
-To learn more about Next.js, take a look at the following resources:
+Warto ustawić `maxDuration` funkcji (`app/api/audit/route.ts`) zależnie od planu Vercela — skan + render
+PDF zwykle mieści się w 15-30s, ale wolne strony mogą to wydłużyć.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js (App Router) · TypeScript · Tailwind CSS · Playwright · axe-core
