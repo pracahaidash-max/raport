@@ -13,17 +13,31 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AuditResult | null>(null);
 
+  function normalizeUrl(raw: string): URL {
+    const trimmed = raw.trim();
+    const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    return new URL(withScheme);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     setResult(null);
 
+    let normalized: URL;
+    try {
+      normalized = normalizeUrl(url);
+    } catch {
+      setError("Podaj poprawny adres, np. https://przyklad.pl");
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch("/api/audit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: normalized.toString() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Skanowanie nie powiodło się");
@@ -34,7 +48,7 @@ export default function Home() {
       const blob = new Blob([bytes], { type: "application/pdf" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `raport-dostepnosci-${new URL(url).hostname}.pdf`;
+      link.download = `raport-dostepnosci-${normalized.hostname}.pdf`;
       link.click();
       URL.revokeObjectURL(link.href);
     } catch (err) {
@@ -71,7 +85,10 @@ export default function Home() {
 
         <form onSubmit={handleSubmit} className="rounded-xl border border-border bg-card p-2 flex gap-2 shadow-sm">
           <input
-            type="url"
+            type="text"
+            inputMode="url"
+            autoCapitalize="off"
+            autoCorrect="off"
             required
             placeholder="https://przyklad.pl"
             value={url}
