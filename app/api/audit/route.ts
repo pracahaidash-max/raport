@@ -29,9 +29,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: (err as Error).message }, { status: 400 });
   }
 
-  const browser = await launchBrowser();
-  const context = await browser.newContext();
+  let browser: Awaited<ReturnType<typeof launchBrowser>> | undefined;
   try {
+    browser = await launchBrowser();
+    const context = await browser.newContext();
     const violations = await scanUrl(context, parsed.toString());
     const counts = computeCounts(violations);
     const score = computeScore(counts);
@@ -54,7 +55,6 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     return NextResponse.json({ error: `Skanowanie nie powiodło się: ${(err as Error).message}` }, { status: 500 });
   } finally {
-    await context.close();
-    await browser.close();
+    await browser?.close();
   }
 }
